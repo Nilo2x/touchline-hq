@@ -9,6 +9,17 @@ import 'supabase_client.dart';
 class SquadRepository {
   final _db = AppSupabase.client;
 
+  /// Returns the current user's id, or throws a readable error instead
+  /// of an unreadable null-check crash if no one is signed in yet
+  /// (should not happen if main.dart's ensureSignedIn() succeeded).
+  String get _requireUserId {
+    final user = _db.auth.currentUser;
+    if (user == null) {
+      throw Exception('No signed-in user yet. Check your internet connection and try again.');
+    }
+    return user.id;
+  }
+
   Future<Squad> createSquad({
     required String name,
     String? managedTeamId,
@@ -17,7 +28,7 @@ class SquadRepository {
     double? wageBudget,
     bool isPublic = false,
   }) async {
-    final userId = _db.auth.currentUser!.id;
+    final userId = _requireUserId;
 
     // Retry on the rare collision with another squad's invite code.
     String code = InviteCode.generate();
@@ -50,7 +61,7 @@ class SquadRepository {
   }
 
   Future<List<Squad>> mySquads() async {
-    final userId = _db.auth.currentUser!.id;
+    final userId = _requireUserId;
     final rows = await _db
         .from('squads')
         .select('*, squad_slots(*)')
@@ -89,7 +100,7 @@ class SquadRepository {
     }
 
     final squad = Squad.fromJson(squadRow);
-    final userId = _db.auth.currentUser!.id;
+    final userId = _requireUserId;
 
     if (squad.ownerId != userId) {
       await _db.from('squad_members').upsert({
@@ -117,7 +128,7 @@ class SquadRepository {
   }
 
   Future<void> rateSquad(String squadId, int rating) async {
-    final userId = _db.auth.currentUser!.id;
+    final userId = _requireUserId;
     await _db.from('squad_ratings').upsert({
       'squad_id': squadId,
       'user_id': userId,

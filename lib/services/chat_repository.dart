@@ -6,6 +6,16 @@ import 'supabase_client.dart';
 class ChatRepository {
   final _db = AppSupabase.client;
 
+  /// Returns the current user's id, or throws a readable error instead
+  /// of an unreadable null-check crash if no one is signed in yet.
+  String get _requireUserId {
+    final user = _db.auth.currentUser;
+    if (user == null) {
+      throw Exception('No signed-in user yet. Check your internet connection and try again.');
+    }
+    return user.id;
+  }
+
   Future<List<ChatMessage>> history(String squadId, {int limit = 50}) async {
     final rows = await _db
         .from('chat_messages')
@@ -27,7 +37,7 @@ class ChatRepository {
     String messageType = 'text',
     String? sharedPlayerId,
   }) async {
-    final userId = _db.auth.currentUser!.id;
+    final userId = _requireUserId;
     await _db.from('chat_messages').insert({
       'squad_id': squadId,
       'user_id': userId,
